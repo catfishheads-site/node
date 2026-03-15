@@ -165,7 +165,7 @@ jobs:
         with:
           extra_nix_config: sandbox = true
 
-      - uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad  # v16
+      - uses: cachix/cachix-action@2b33705a8232e51ac94414b3b8c203d0a5e42ca3  # v16
         with:
           name: nodejs
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
