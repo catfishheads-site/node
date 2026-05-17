@@ -350,7 +350,6 @@ DWAssets.load();
 // ===============================
 const DWAutoAim = {
   enabled: false,
-  fireTimer: 0,
   toggle() {
     this.enabled = !this.enabled;
     const el = document.getElementById('dw-autoaim');
@@ -372,8 +371,6 @@ const DWAutoAim = {
       p.angle = Math.atan2(nearest.y - p.y, nearest.x - p.x);
       mouse.x = nearest.x;
       mouse.y = nearest.y;
-      this.fireTimer++;
-      if (this.fireTimer % 8 === 0) shoot();
     }
   }
 };

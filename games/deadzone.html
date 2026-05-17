@@ -121,7 +121,6 @@ Assets.load();
 // ===============================
 const AutoAim = {
   enabled: false,
-  fireTimer: 0,
   toggle() {
     this.enabled = !this.enabled;
     const el = document.getElementById('autoaim-hud');
@@ -142,14 +141,6 @@ const AutoAim = {
     });
     if (nearest) {
       p.angle = Math.atan2(nearest.y - p.y, nearest.x - p.x);
-      this.fireTimer++;
-      if (this.fireTimer % 8 === 0 && s.ammo > 0 && !s.reloading) {
-        Bullets.shoot();
-      }
-      if (s.ammo <= 0 && !s.reloading) {
-        s.reloading = true;
-        s.reloadTimer = 0;
-      }
     }
   }
 };
