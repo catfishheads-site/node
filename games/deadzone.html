@@ -231,8 +231,9 @@ const Zombies = {
 
     s.zombies.forEach(z => {
       const angle = Math.atan2(p.y - z.y, p.x - z.x);
-      z.x += Math.cos(angle) * z.speed;
-      z.y += Math.sin(angle) * z.speed;
+      const spd = z.quakeSlowed ? z.speed * 0.4 : z.speed;
+      z.x += Math.cos(angle) * spd;
+      z.y += Math.sin(angle) * spd;
       if (z.hitFlash > 0) z.hitFlash--;
 
       // Collision with player
@@ -530,7 +531,7 @@ const ApocalypticEvents = {
         }
 
         // Add ground crack
-        s.cracks.push({ x: impactX, y: impactY - 10, life: 300, radius: a.radius * 3 });
+        s.cracks.push(ApocalypticEvents.makeCrack(impactX, impactY - 10, a.radius * 3, 300));
       }
 
       // Direct hit on zombie mid-air
@@ -561,9 +562,9 @@ const ApocalypticEvents = {
       s.screenShake = 3;
       s.shakeIntensity = 3 + Math.sin(s.eventTimer * 0.2) * 4;
 
-      // Stun/slow zombies
+      // Stun/slow zombies (temporary — restored when event ends)
       s.zombies.forEach(z => {
-        z.speed = Math.max(0.3, z.speed * 0.98);
+        z.quakeSlowed = true;
         if (Math.random() < 0.02) {
           z.hitFlash = 4;
           Particles.burst(z.x, z.y + z.radius, '#964B00', 2);
@@ -572,12 +573,11 @@ const ApocalypticEvents = {
 
       // Spawn ground cracks
       if (s.eventTimer % 30 === 0) {
-        s.cracks.push({
-          x: Math.random() * Game.canvas.width,
-          y: Math.random() * Game.canvas.height,
-          life: 400,
-          radius: 30 + Math.random() * 50
-        });
+        s.cracks.push(ApocalypticEvents.makeCrack(
+          Math.random() * Game.canvas.width,
+          Math.random() * Game.canvas.height,
+          30 + Math.random() * 50, 400
+        ));
       }
 
       // Chance to damage zombies from falling debris
@@ -592,6 +592,7 @@ const ApocalypticEvents = {
       }
     } else {
       s.screenShake = 0;
+      s.zombies.forEach(z => { z.quakeSlowed = false; });
       s.activeEvent = null;
     }
   },
@@ -654,10 +655,22 @@ const ApocalypticEvents = {
     }
   },
 
+  makeCrack(x, y, radius, life) {
+    const segs = [];
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2 + x * 0.01;
+      segs.push({
+        ex: x + Math.cos(a) * radius * (0.5 + Math.random() * 0.5),
+        ey: y + Math.sin(a) * radius * (0.3 + Math.random() * 0.5)
+      });
+    }
+    return { x, y, life, radius, segs };
+  },
+
   draw(ctx) {
     const s = Game.state;
 
-    // Draw ground cracks
+    // Draw ground cracks (pre-computed segments — no jitter)
     s.cracks.forEach(c => {
       c.life--;
       const alpha = Math.min(1, c.life / 100);
@@ -665,17 +678,12 @@ const ApocalypticEvents = {
       ctx.globalAlpha = alpha * 0.6;
       ctx.strokeStyle = '#654321';
       ctx.lineWidth = 2;
-      const segs = 5;
-      for (let i = 0; i < segs; i++) {
-        const a = (i / segs) * Math.PI * 2 + c.x * 0.01;
+      c.segs.forEach(seg => {
         ctx.beginPath();
         ctx.moveTo(c.x, c.y);
-        ctx.lineTo(
-          c.x + Math.cos(a) * c.radius * (0.5 + Math.random() * 0.5),
-          c.y + Math.sin(a) * c.radius * (0.3 + Math.random() * 0.5)
-        );
+        ctx.lineTo(seg.ex, seg.ey);
         ctx.stroke();
-      }
+      });
       ctx.restore();
     });
     s.cracks = s.cracks.filter(c => c.life > 0);
