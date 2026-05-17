@@ -161,12 +161,13 @@ const GamepadInput = {
     const p = Game.state.player;
     const s = Game.state;
 
-    // Left stick -> movement
+    // Left stick -> movement (normalized for consistent diagonal speed)
     const lx = Math.abs(gp.axes[0]) > this.deadzone ? gp.axes[0] : 0;
     const ly = Math.abs(gp.axes[1]) > this.deadzone ? gp.axes[1] : 0;
     if (lx || ly) {
-      p.x += lx * p.speed;
-      p.y += ly * p.speed;
+      const len = Math.sqrt(lx * lx + ly * ly);
+      p.x += (lx / len) * p.speed;
+      p.y += (ly / len) * p.speed;
       p.x = Math.max(p.radius, Math.min(Game.canvas.width - p.radius, p.x));
       p.y = Math.max(p.radius, Math.min(Game.canvas.height - p.radius, p.y));
     }
