@@ -148,8 +148,9 @@ canvas{display:block;cursor:crosshair}
     <button class="btn-unlock" onclick="showScreen('unlock-modal')">⚡ UNLOCK ALL — $4.99</button>
   </div>
   <div class="controls-hint">
-    WASD Move &nbsp; Mouse Aim &nbsp; Click Shoot &nbsp; R Reload &nbsp; V Switch View
+    WASD Move &nbsp; Mouse Aim &nbsp; Click Shoot &nbsp; R Reload &nbsp; V Switch View &nbsp; Q Auto-Aim
   </div>
+  <img src="assets/zombie-group.jpg" alt="Zombies" style="width:120px;height:auto;margin-top:12px;border-radius:12px;border:2px solid #c22;opacity:0.8">
 </div>
 
 <!-- ====== HOW TO PLAY ====== -->
@@ -283,6 +284,7 @@ canvas{display:block;cursor:crosshair}
   </div>
   <div class="hud-right">
     <span class="hp-bar-wrap">❤️ HEALTH <span class="hp-bar"><span class="hp-fill" id="hp-fill"></span></span></span>
+    <span id="dw-autoaim" style="cursor:pointer;font-size:12px;color:#666" onclick="DWAutoAim.toggle()">AIM:OFF [Q]</span>
   </div>
 </div>
 
@@ -319,6 +321,147 @@ canvas{display:block;cursor:crosshair}
 <canvas id="gc"></canvas>
 
 <script>
+// ===============================
+// ASSET LOADING
+// ===============================
+const DWAssets = {
+  zombieImg: new Image(),
+  zombieImg2: new Image(),
+  zombieImg3: new Image(),
+  loaded: 0,
+  total: 3,
+  load() {
+    const srcs = [
+      ['zombieImg', 'assets/zombie-spritesheet.jpg'],
+      ['zombieImg2', 'assets/zombie-teal-spritesheet.jpg'],
+      ['zombieImg3', 'assets/zombie-blue.jpg']
+    ];
+    srcs.forEach(([key, src]) => {
+      this[key].onload = () => this.loaded++;
+      this[key].onerror = () => this.loaded++;
+      this[key].src = src;
+    });
+  }
+};
+DWAssets.load();
+
+// ===============================
+// AUTO-AIM SYSTEM
+// ===============================
+const DWAutoAim = {
+  enabled: false,
+  fireTimer: 0,
+  toggle() {
+    this.enabled = !this.enabled;
+    const el = document.getElementById('dw-autoaim');
+    if (el) {
+      el.textContent = 'AIM:' + (this.enabled ? 'ON' : 'OFF') + ' [Q]';
+      el.style.color = this.enabled ? '#0f0' : '#666';
+    }
+  },
+  update() {
+    if (!this.enabled || !G || !G.running) return;
+    const p = G.player;
+    let nearest = null, nearDist = Infinity;
+    G.zombies.forEach(z => {
+      const dx = z.x - p.x, dy = z.y - p.y;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d < nearDist) { nearDist = d; nearest = z; }
+    });
+    if (nearest) {
+      p.angle = Math.atan2(nearest.y - p.y, nearest.x - p.x);
+      mouse.x = nearest.x;
+      mouse.y = nearest.y;
+      this.fireTimer++;
+      if (this.fireTimer % 8 === 0) shoot();
+    }
+  }
+};
+
+// ===============================
+// EXTRA WEIRDNESS ENGINE
+// ===============================
+const Weirdness = {
+  screenWobble: 0,
+  rainbowMode: false,
+  gravityFlip: false,
+  mirrorMode: false,
+  tinyMode: false,
+  giantMode: false,
+  trailMode: false,
+  trailHistory: [],
+
+  randomize() {
+    if (Math.random() < 0.15) {
+      this.screenWobble = 180 + Math.random() * 120;
+    }
+    if (Math.random() < 0.12) {
+      this.rainbowMode = true;
+      setTimeout(() => this.rainbowMode = false, 5000 + Math.random() * 3000);
+    }
+    if (Math.random() < 0.08) {
+      this.mirrorMode = true;
+      setTimeout(() => this.mirrorMode = false, 4000);
+    }
+    if (Math.random() < 0.08) {
+      this.tinyMode = true;
+      setTimeout(() => { this.tinyMode = false; }, 5000);
+    }
+    if (Math.random() < 0.08) {
+      this.giantMode = true;
+      setTimeout(() => { this.giantMode = false; }, 4000);
+    }
+    if (Math.random() < 0.10) {
+      this.trailMode = true;
+      setTimeout(() => { this.trailMode = false; this.trailHistory = []; }, 6000);
+    }
+  },
+
+  applyRender(ctx) {
+    if (this.screenWobble > 0) {
+      this.screenWobble--;
+      const wobble = Math.sin(Date.now() / 100) * 8;
+      ctx.translate(wobble, Math.cos(Date.now() / 130) * 5);
+    }
+    if (this.mirrorMode) {
+      ctx.scale(-1, 1);
+      ctx.translate(-canvas.width, 0);
+    }
+  },
+
+  getZombieColor(z, baseColor) {
+    if (this.rainbowMode) {
+      return `hsl(${(Date.now() / 3 + z.x * 2 + z.y) % 360}, 80%, 50%)`;
+    }
+    return baseColor;
+  },
+
+  getZombieRadius(z) {
+    let r = z.radius;
+    if (this.tinyMode) r = z.isBoss ? 14 : 7;
+    if (this.giantMode) r = z.isBoss ? 50 : 30;
+    return r;
+  },
+
+  updateTrail() {
+    if (!this.trailMode || !G) return;
+    this.trailHistory.push({ x: G.player.x, y: G.player.y, life: 20 });
+    this.trailHistory = this.trailHistory.filter(t => { t.life--; return t.life > 0; });
+  },
+
+  drawTrail(ctx) {
+    if (!this.trailMode) return;
+    this.trailHistory.forEach(t => {
+      ctx.globalAlpha = t.life / 20 * 0.3;
+      ctx.fillStyle = `hsl(${t.life * 18}, 80%, 60%)`;
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, G.player.radius * (t.life / 20), 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+  }
+};
+
 // ===============================
 // CONFIG
 // ===============================
@@ -457,6 +600,7 @@ window.addEventListener('keydown', e => {
   keys[e.key.toLowerCase()] = true;
   if (e.key === 'r') reload();
   if (e.key === 'v') toggleView();
+  if (e.key === 'q') DWAutoAim.toggle();
   if (e.key >= '1' && e.key <= '4') selectWeapon(parseInt(e.key) - 1);
 });
 window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
@@ -620,7 +764,8 @@ function spawnZombie() {
     speed: isBoss ? 1.0 : 1.2 + Math.random() * 0.6 + wave * 0.08,
     radius: isBoss ? 28 : 15,
     hitFlash: 0, isBoss,
-    stunned: 0, dancing: false, distracted: false
+    stunned: 0, dancing: false, distracted: false,
+    spriteType: Math.floor(Math.random() * 3)
   });
   G.zombiesSpawned++;
 }
@@ -758,6 +903,8 @@ function gameLoop() {
   if (!G || !G.running) return;
 
   update();
+  DWAutoAim.update();
+  Weirdness.updateTrail();
   render();
   updateHUD();
 
@@ -1012,14 +1159,15 @@ function update() {
         showScreen('gameover');
         return;
       }
-      G.wave++;
-      G.zombiesPerWave = 5 + G.wave * 3;
-      G.zombiesSpawned = 0;
-      G.waveTimer = 0;
-      G.waveClearing = false;
-      G.weirdTriggered = false;
-      showWaveBanner(G.wave);
-      updateWeaponSlots();
+          G.wave++;
+          G.zombiesPerWave = 5 + G.wave * 3;
+          G.zombiesSpawned = 0;
+          G.waveTimer = 0;
+          G.waveClearing = false;
+          G.weirdTriggered = false;
+          Weirdness.randomize();
+          showWaveBanner(G.wave);
+          updateWeaponSlots();
     }
   }
 }
@@ -1038,9 +1186,12 @@ function render() {
 }
 
 function renderThirdPerson() {
+  ctx.save();
+  Weirdness.applyRender(ctx);
+
   // Background grid
   ctx.fillStyle = '#0a0a0a';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(-20, -20, canvas.width + 40, canvas.height + 40);
   ctx.strokeStyle = 'rgba(255,255,255,0.03)';
   ctx.lineWidth = 1;
   for (let x = 0; x < canvas.width; x += 40) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke(); }
@@ -1117,39 +1268,74 @@ function renderThirdPerson() {
     ctx.fillText('🐄', c.x, c.y + 12);
   });
 
+  // Player trail (weirdness)
+  Weirdness.drawTrail(ctx);
+
   // Zombies
+  const zImgs = [DWAssets.zombieImg, DWAssets.zombieImg2, DWAssets.zombieImg3];
+  const zSrcRegions = [
+    [50, 50, 650, 1400],
+    [1400, 20, 600, 730],
+    [60, 20, 480, 820]
+  ];
+
   G.zombies.forEach(z => {
     ctx.save();
     const pa = Math.atan2(G.player.y-z.y, G.player.x-z.x);
+    const drawR = Weirdness.getZombieRadius(z);
 
-    // Body
-    if (z.dancing) {
-      ctx.fillStyle = `hsl(${Date.now()/5%360},80%,50%)`;
-    } else if (z.distracted) {
-      ctx.fillStyle = '#ff69b4';
-    } else if (z.stunned > 0) {
-      ctx.fillStyle = '#888';
+    // Sprite-based rendering
+    const sIdx = z.spriteType !== undefined ? z.spriteType : 0;
+    const sImg = zImgs[sIdx];
+    const sRgn = zSrcRegions[sIdx];
+    let useSprite = sImg && sImg.complete && sImg.naturalWidth > 0;
+
+    // Determine fill color for fallback/overlay
+    let bodyColor;
+    if (z.dancing) bodyColor = `hsl(${Date.now()/5%360},80%,50%)`;
+    else if (z.distracted) bodyColor = '#ff69b4';
+    else if (z.stunned > 0) bodyColor = '#888';
+    else bodyColor = z.hitFlash > 0 ? '#ff6' : (z.isBoss ? '#8B0000' : '#2a8c2a');
+    bodyColor = Weirdness.getZombieColor(z, bodyColor);
+
+    if (useSprite && !z.isBoss) {
+      ctx.beginPath();
+      ctx.arc(z.x, z.y, drawR, 0, Math.PI*2);
+      ctx.clip();
+      if (z.hitFlash > 0 || z.dancing || z.stunned > 0) {
+        ctx.fillStyle = bodyColor + (z.hitFlash > 0 ? '' : '60');
+        ctx.fill();
+      }
+      const sz = drawR * 2;
+      ctx.drawImage(sImg, sRgn[0], sRgn[1], sRgn[2], sRgn[3], z.x - drawR, z.y - drawR, sz, sz);
+      ctx.restore();
+      ctx.save();
+      ctx.strokeStyle = z.isBoss ? '#500' : '#1a5c1a';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(z.x, z.y, drawR, 0, Math.PI*2); ctx.stroke();
     } else {
-      ctx.fillStyle = z.hitFlash > 0 ? '#ff6' : (z.isBoss ? '#8B0000' : '#2a8c2a');
+      ctx.fillStyle = bodyColor;
+      ctx.beginPath(); ctx.arc(z.x, z.y, drawR, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = z.isBoss ? '#500' : '#1a5c1a';
+      ctx.lineWidth = 2; ctx.stroke();
     }
-    ctx.beginPath(); ctx.arc(z.x, z.y, z.radius, 0, Math.PI*2); ctx.fill();
-    ctx.strokeStyle = z.isBoss ? '#500' : '#1a5c1a';
-    ctx.lineWidth = 2; ctx.stroke();
 
     // Eyes
+    const eyeR = z.isBoss ? 4 : Math.max(2, drawR * 0.2);
+    const eyeDist = drawR * 0.47;
     ctx.fillStyle = z.isBoss ? '#ff0' : '#f00';
     ctx.beginPath();
-    ctx.arc(z.x+Math.cos(pa-0.4)*7, z.y+Math.sin(pa-0.4)*7, z.isBoss?4:3, 0, Math.PI*2);
-    ctx.arc(z.x+Math.cos(pa+0.4)*7, z.y+Math.sin(pa+0.4)*7, z.isBoss?4:3, 0, Math.PI*2);
+    ctx.arc(z.x+Math.cos(pa-0.4)*eyeDist, z.y+Math.sin(pa-0.4)*eyeDist, eyeR, 0, Math.PI*2);
+    ctx.arc(z.x+Math.cos(pa+0.4)*eyeDist, z.y+Math.sin(pa+0.4)*eyeDist, eyeR, 0, Math.PI*2);
     ctx.fill();
 
     // HP bar
     if (z.hp < z.maxHp) {
       const bw = z.isBoss ? 40 : 24;
       ctx.fillStyle = '#400';
-      ctx.fillRect(z.x-bw/2, z.y-z.radius-8, bw, 4);
+      ctx.fillRect(z.x-bw/2, z.y-drawR-8, bw, 4);
       ctx.fillStyle = z.isBoss ? '#f0f' : '#f44';
-      ctx.fillRect(z.x-bw/2, z.y-z.radius-8, bw*(z.hp/z.maxHp), 4);
+      ctx.fillRect(z.x-bw/2, z.y-drawR-8, bw*(z.hp/z.maxHp), 4);
     }
 
     // Phone call speech bubble
@@ -1157,21 +1343,21 @@ function renderThirdPerson() {
       ctx.fillStyle = '#fff';
       ctx.font = '11px Arial';
       ctx.textAlign = 'center';
-      ctx.fillText('"Sorry about all this..."', z.x, z.y - z.radius - 14);
+      ctx.fillText('"Sorry about all this..."', z.x, z.y - drawR - 14);
     }
 
     // Dancing indicator
     if (z.dancing) {
       ctx.font = '14px serif';
       ctx.textAlign = 'center';
-      ctx.fillText('🕺', z.x, z.y - z.radius - 6);
+      ctx.fillText('🕺', z.x, z.y - drawR - 6);
     }
 
     // Distracted indicator
     if (z.distracted) {
       ctx.font = '14px serif';
       ctx.textAlign = 'center';
-      ctx.fillText('💅', z.x, z.y - z.radius - 6);
+      ctx.fillText('💅', z.x, z.y - drawR - 6);
     }
 
     ctx.restore();
@@ -1214,6 +1400,16 @@ function renderThirdPerson() {
   ctx.fillStyle = '#666';
   ctx.fillRect(p.radius+16, -4, 6, 8);
 
+  // Auto-aim indicator
+  if (DWAutoAim.enabled) {
+    ctx.strokeStyle = '#0f0';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.arc(0, 0, p.radius + 12, 0, Math.PI*2); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  ctx.restore();
   ctx.restore();
 }
 
