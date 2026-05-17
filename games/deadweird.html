@@ -376,6 +376,79 @@ const DWAutoAim = {
 };
 
 // ===============================
+// GAMEPAD (Xbox Controller)
+// ===============================
+const DWGamepad = {
+  prevButtons: {},
+  deadzone: 0.25,
+  fireCounter: 0,
+
+  poll() {
+    const gpList = navigator.getGamepads ? navigator.getGamepads() : [];
+    const gp = gpList[0] || gpList[1] || gpList[2] || gpList[3];
+    if (!gp || !G || !G.running) return;
+
+    const p = G.player;
+
+    // Left stick -> movement
+    const lx = Math.abs(gp.axes[0]) > this.deadzone ? gp.axes[0] : 0;
+    const ly = Math.abs(gp.axes[1]) > this.deadzone ? gp.axes[1] : 0;
+    if (lx || ly) {
+      const len = Math.sqrt(lx * lx + ly * ly);
+      p.x += (lx / len) * p.speed;
+      p.y += (ly / len) * p.speed;
+      p.x = Math.max(p.radius, Math.min(canvas.width - p.radius, p.x));
+      p.y = Math.max(p.radius, Math.min(canvas.height - p.radius, p.y));
+    }
+
+    // Right stick -> aim
+    const rx = Math.abs(gp.axes[2]) > this.deadzone ? gp.axes[2] : 0;
+    const ry = Math.abs(gp.axes[3]) > this.deadzone ? gp.axes[3] : 0;
+    if (rx || ry) {
+      p.angle = Math.atan2(ry, rx);
+      mouse.x = p.x + rx * 300;
+      mouse.y = p.y + ry * 300;
+    }
+
+    // RT (button 7) -> shoot (rate-limited)
+    if (gp.buttons[7] && gp.buttons[7].pressed) {
+      this.fireCounter++;
+      if (this.fireCounter % 8 === 1) shoot();
+    } else {
+      this.fireCounter = 0;
+    }
+
+    // LB (button 4) -> reload
+    if (this.justPressed(gp, 4)) reload();
+
+    // A (button 0) -> toggle auto-aim
+    if (this.justPressed(gp, 0)) DWAutoAim.toggle();
+
+    // Y (button 3) -> toggle view
+    if (this.justPressed(gp, 3)) toggleView();
+
+    // D-pad left/right (buttons 14, 15) -> switch weapons
+    if (this.justPressed(gp, 15)) {
+      const next = (G.currentWeapon + 1) % weapons.length;
+      selectWeapon(next);
+    }
+    if (this.justPressed(gp, 14)) {
+      const prev = (G.currentWeapon - 1 + weapons.length) % weapons.length;
+      selectWeapon(prev);
+    }
+
+    // Save button states
+    for (let i = 0; i < gp.buttons.length; i++) {
+      this.prevButtons[i] = gp.buttons[i].pressed;
+    }
+  },
+
+  justPressed(gp, idx) {
+    return gp.buttons[idx] && gp.buttons[idx].pressed && !this.prevButtons[idx];
+  }
+};
+
+// ===============================
 // EXTRA WEIRDNESS ENGINE
 // ===============================
 const Weirdness = {
@@ -901,6 +974,7 @@ function gameLoop() {
 
   update();
   DWAutoAim.update();
+  DWGamepad.poll();
   Weirdness.updateTrail();
   render();
   updateHUD();

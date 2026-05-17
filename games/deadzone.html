@@ -146,6 +146,69 @@ const AutoAim = {
 };
 
 // ===============================
+// GAMEPAD (Xbox Controller)
+// ===============================
+const GamepadInput = {
+  prevButtons: {},
+  deadzone: 0.25,
+  fireCounter: 0,
+
+  poll() {
+    const gpList = navigator.getGamepads ? navigator.getGamepads() : [];
+    const gp = gpList[0] || gpList[1] || gpList[2] || gpList[3];
+    if (!gp || !Game.running) return;
+
+    const p = Game.state.player;
+    const s = Game.state;
+
+    // Left stick -> movement
+    const lx = Math.abs(gp.axes[0]) > this.deadzone ? gp.axes[0] : 0;
+    const ly = Math.abs(gp.axes[1]) > this.deadzone ? gp.axes[1] : 0;
+    if (lx || ly) {
+      p.x += lx * p.speed;
+      p.y += ly * p.speed;
+      p.x = Math.max(p.radius, Math.min(Game.canvas.width - p.radius, p.x));
+      p.y = Math.max(p.radius, Math.min(Game.canvas.height - p.radius, p.y));
+    }
+
+    // Right stick -> aim
+    const rx = Math.abs(gp.axes[2]) > this.deadzone ? gp.axes[2] : 0;
+    const ry = Math.abs(gp.axes[3]) > this.deadzone ? gp.axes[3] : 0;
+    if (rx || ry) {
+      p.angle = Math.atan2(ry, rx);
+    }
+
+    // RT (button 7) -> shoot (rate-limited)
+    if (gp.buttons[7] && gp.buttons[7].pressed) {
+      this.fireCounter++;
+      if (this.fireCounter % 10 === 1) Bullets.shoot();
+    } else {
+      this.fireCounter = 0;
+    }
+
+    // LB (button 4) -> reload
+    if (this.justPressed(gp, 4)) {
+      if (!s.reloading && s.ammo < s.maxAmmo) {
+        s.reloading = true;
+        s.reloadTimer = 0;
+      }
+    }
+
+    // A (button 0) -> toggle auto-aim
+    if (this.justPressed(gp, 0)) AutoAim.toggle();
+
+    // Save button states
+    for (let i = 0; i < gp.buttons.length; i++) {
+      this.prevButtons[i] = gp.buttons[i].pressed;
+    }
+  },
+
+  justPressed(gp, idx) {
+    return gp.buttons[idx] && gp.buttons[idx].pressed && !this.prevButtons[idx];
+  }
+};
+
+// ===============================
 // CORE ENGINE
 // ===============================
 const Game = {
@@ -1000,6 +1063,7 @@ const Loop = {
     Particles.update();
     ApocalypticEvents.update();
     AutoAim.update();
+    GamepadInput.poll();
   },
 
   render() {
