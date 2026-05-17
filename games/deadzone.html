@@ -254,17 +254,17 @@ const Player = {
       const fh = img.naturalHeight / 4;
       const sz = (p.radius + 2) * 2;
 
-      // Clip to circle
+      // Clip to circle and fill base color
       ctx.beginPath();
       ctx.arc(0, 0, p.radius + 2, 0, Math.PI * 2);
       ctx.clip();
+      ctx.fillStyle = p.invincible > 0 && Math.floor(p.invincible / 4) % 2 === 0 ? '#5599ff' : '#2266cc';
+      ctx.fillRect(-sz / 2, -sz / 2, sz, sz);
 
-      if (p.invincible > 0 && Math.floor(p.invincible / 4) % 2 === 0) {
-        ctx.fillStyle = 'rgba(80,150,255,0.4)';
-        ctx.fill();
-      }
-
+      // Multiply blend removes white background
+      ctx.globalCompositeOperation = 'multiply';
       ctx.drawImage(img, col * fw, row * fh, fw, fh, -sz / 2, -sz / 2, sz, sz);
+      ctx.globalCompositeOperation = 'source-over';
       ctx.restore();
 
       // Gun barrel (outside clip)
@@ -382,12 +382,13 @@ const Zombies = {
         ctx.beginPath();
         ctx.arc(z.x, z.y, z.radius, 0, Math.PI * 2);
         ctx.clip();
-        if (z.hitFlash > 0) {
-          ctx.fillStyle = 'rgba(255,255,100,0.5)';
-          ctx.fill();
-        }
+        // Fill base color, then multiply-blend sprite to remove white BG
+        ctx.fillStyle = z.hitFlash > 0 ? '#ff6' : '#2a8c2a';
         const sz = z.radius * 2;
+        ctx.fillRect(z.x - z.radius, z.y - z.radius, sz, sz);
+        ctx.globalCompositeOperation = 'multiply';
         ctx.drawImage(img, rgn[0], rgn[1], rgn[2], rgn[3], z.x - z.radius, z.y - z.radius, sz, sz);
+        ctx.globalCompositeOperation = 'source-over';
         ctx.restore();
         ctx.strokeStyle = '#1a5c1a';
         ctx.lineWidth = 2;

@@ -1302,12 +1302,13 @@ function renderThirdPerson() {
       ctx.beginPath();
       ctx.arc(z.x, z.y, drawR, 0, Math.PI*2);
       ctx.clip();
-      if (z.hitFlash > 0 || z.dancing || z.stunned > 0) {
-        ctx.fillStyle = bodyColor + (z.hitFlash > 0 ? '' : '60');
-        ctx.fill();
-      }
+      // Fill base color then multiply-blend sprite to remove white BG
+      ctx.fillStyle = bodyColor;
       const sz = drawR * 2;
+      ctx.fillRect(z.x - drawR, z.y - drawR, sz, sz);
+      ctx.globalCompositeOperation = 'multiply';
       ctx.drawImage(sImg, sRgn[0], sRgn[1], sRgn[2], sRgn[3], z.x - drawR, z.y - drawR, sz, sz);
+      ctx.globalCompositeOperation = 'source-over';
       ctx.restore();
       ctx.save();
       ctx.strokeStyle = z.isBoss ? '#500' : '#1a5c1a';
