@@ -1,0 +1,1625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Dead Weird — A Catfish Heads Game</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;overflow:hidden;font-family:'Segoe UI',Arial,sans-serif;color:#fff;touch-action:none;user-select:none}
+canvas{display:block;cursor:crosshair}
+
+/* ---- SCREENS ---- */
+.screen{position:fixed;top:0;left:0;width:100%;height:100%;display:none;flex-direction:column;align-items:center;justify-content:center;z-index:100;overflow-y:auto}
+.screen.active{display:flex}
+
+/* MENU */
+#menu{background:radial-gradient(ellipse at center,#1a0a0a 0%,#000 80%)}
+#menu .icons{font-size:36px;letter-spacing:12px;margin-bottom:8px}
+#menu h1{font-size:clamp(42px,10vw,80px);color:#c22;text-shadow:0 0 30px #f00,0 0 60px #900;letter-spacing:6px}
+#menu .sub{color:#999;font-size:14px;margin:4px 0 6px;letter-spacing:1px}
+#menu .brand{color:#666;font-size:12px;margin-bottom:24px}
+#menu .brand a{color:#888;text-decoration:none}
+.view-btns{display:flex;gap:12px;margin-bottom:16px}
+.view-btns button{padding:10px 24px;font-size:16px;border:2px solid #c22;background:transparent;color:#c22;cursor:pointer;transition:all .2s}
+.view-btns button:hover,.view-btns button.sel{background:#c22;color:#fff}
+.menu-row{display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap;justify-content:center}
+.menu-row button{padding:12px 28px;font-size:16px;border:none;cursor:pointer;letter-spacing:1px;transition:background .2s}
+.btn-play{background:#c22;color:#fff;font-size:18px;padding:14px 40px}
+.btn-play:hover{background:#e33}
+.btn-how{background:#333;color:#fff}
+.btn-how:hover{background:#555}
+.btn-unlock{background:linear-gradient(135deg,#f90,#c22);color:#fff}
+.btn-unlock:hover{background:linear-gradient(135deg,#fb0,#e33)}
+.controls-hint{color:#777;font-size:12px;margin-top:16px;text-align:center;line-height:1.8}
+
+/* HOW TO PLAY */
+#howtoplay{background:rgba(0,0,0,.95);padding:40px 20px;align-items:flex-start;justify-content:flex-start}
+#howtoplay .inner{max-width:700px;margin:0 auto;padding-bottom:60px}
+#howtoplay h2{color:#c22;font-size:28px;margin:24px 0 12px}
+#howtoplay h3{color:#f90;font-size:18px;margin:16px 0 8px}
+#howtoplay table{width:100%;border-collapse:collapse;margin-bottom:12px}
+#howtoplay td{padding:6px 10px;border-bottom:1px solid #222;font-size:14px;color:#ccc}
+#howtoplay td:first-child{color:#fff;font-weight:bold;width:40%}
+.weapon-card,.powerup-card{background:#111;border:1px solid #333;border-radius:8px;padding:12px 16px;margin:8px 0;display:flex;align-items:center;gap:12px}
+.weapon-card .icon,.powerup-card .icon{font-size:32px}
+.weapon-card .info h4,.powerup-card .info h4{color:#fff;margin-bottom:2px}
+.weapon-card .info p,.powerup-card .info p{color:#888;font-size:13px}
+.weird-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}
+.weird-item{background:#111;border:1px solid #333;border-radius:6px;padding:8px 10px;font-size:13px}
+.weird-item span{color:#f90}
+.back-btn{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);padding:12px 36px;background:#c22;color:#fff;border:none;font-size:16px;cursor:pointer;z-index:101}
+
+/* GAME OVER */
+#gameover{background:rgba(0,0,0,.9)}
+#gameover .skull{font-size:72px;margin-bottom:8px}
+#gameover h1{font-size:56px;color:#c22;text-shadow:0 0 20px #900}
+#gameover .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:24px 0;text-align:center}
+#gameover .stat-val{font-size:36px;color:#fff}
+#gameover .stat-label{font-size:13px;color:#888}
+#gameover .go-btns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+#gameover .go-btns button{padding:10px 24px;font-size:14px;border:none;cursor:pointer}
+.btn-retry{background:#c22;color:#fff}
+.btn-retry:hover{background:#e33}
+
+/* UNLOCK MODAL */
+#unlock-modal{background:rgba(0,0,0,.92);padding:30px 20px}
+#unlock-modal .inner{max-width:500px;text-align:center}
+#unlock-modal .unlock-icons{font-size:28px;letter-spacing:6px;margin-bottom:12px}
+#unlock-modal h2{color:#c22;font-size:28px;margin-bottom:4px}
+#unlock-modal .tagline{color:#888;font-size:14px;margin-bottom:4px}
+#unlock-modal .price{color:#f90;font-size:18px;font-weight:bold;margin-bottom:16px}
+.features-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;text-align:left;margin-bottom:20px;font-size:14px}
+.features-grid div{padding:4px 8px}
+#unlock-modal .pay-btn{padding:14px 40px;font-size:18px;background:linear-gradient(135deg,#f90,#c22);color:#fff;border:none;cursor:pointer;margin-bottom:6px;display:block;width:100%}
+#unlock-modal .pay-btn:hover{opacity:.9}
+#unlock-modal .stripe-note{color:#666;font-size:11px;margin-bottom:16px}
+#unlock-modal .brand-note{color:#555;font-size:12px;margin-top:12px}
+
+/* HUD */
+#hud{position:fixed;top:0;left:0;width:100%;display:flex;align-items:center;justify-content:space-between;padding:6px 16px;z-index:50;background:rgba(0,0,0,.6);font-size:14px;pointer-events:none}
+#hud>*{pointer-events:auto}
+.hud-left{display:flex;align-items:center;gap:16px}
+.hud-right{display:flex;align-items:center;gap:16px}
+.hud-center{text-align:center}
+#view-toggle{background:none;border:1px solid #666;color:#fff;padding:4px 12px;font-size:12px;cursor:pointer}
+.hp-bar-wrap{display:flex;align-items:center;gap:6px}
+.hp-bar{width:120px;height:12px;background:#333;border-radius:6px;overflow:hidden}
+.hp-fill{height:100%;background:#2c2;transition:width .2s}
+.combo-display{color:#f90;font-weight:bold;font-size:16px}
+.wave-display{color:#c22;font-weight:bold}
+
+/* WEAPON SLOTS */
+#weapon-bar{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:50}
+.weapon-slot{width:48px;height:48px;background:rgba(0,0,0,.7);border:2px solid #444;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;position:relative}
+.weapon-slot.active{border-color:#f90;background:rgba(255,153,0,.15)}
+.weapon-slot.locked{opacity:.4}
+.weapon-slot .key-hint{position:absolute;top:-8px;right:-4px;font-size:10px;color:#999;background:#222;padding:1px 4px;border-radius:3px}
+
+/* AMMO */
+#ammo-display{position:fixed;bottom:14px;right:20px;font-size:18px;z-index:50;text-align:right}
+#ammo-display .ammo-count{font-size:24px;font-weight:bold}
+#ammo-display .reload-msg{color:#f90;font-size:14px}
+
+/* WAVE BANNER */
+#wave-banner{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:48px;color:#c22;font-weight:bold;text-shadow:0 0 20px #900;z-index:60;display:none;pointer-events:none}
+
+/* WEIRD EVENT BANNER */
+#weird-banner{position:fixed;top:30%;left:50%;transform:translate(-50%,-50%);font-size:28px;color:#f90;font-weight:bold;text-shadow:0 0 15px #f90;z-index:60;display:none;pointer-events:none;text-align:center}
+
+/* DEMO BANNER */
+#demo-banner{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.7);border:1px solid #c22;color:#f90;padding:6px 16px;font-size:12px;z-index:50;cursor:pointer;white-space:nowrap;display:none}
+#demo-banner:hover{background:rgba(200,30,30,.3)}
+
+/* MOBILE CONTROLS */
+#mobile-controls{display:none;position:fixed;bottom:0;left:0;width:100%;height:200px;z-index:55;pointer-events:none}
+#joystick-zone{position:absolute;bottom:20px;left:20px;width:120px;height:120px;pointer-events:auto}
+#joystick-base{width:120px;height:120px;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.2);border-radius:50%;position:relative}
+#joystick-knob{width:50px;height:50px;background:rgba(255,255,255,.3);border-radius:50%;position:absolute;top:35px;left:35px}
+#fire-btn{position:absolute;bottom:30px;right:30px;width:80px;height:80px;background:rgba(200,30,30,.6);border:3px solid #c22;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:bold;color:#fff;pointer-events:auto}
+#reload-btn{position:absolute;bottom:30px;right:120px;width:44px;height:44px;background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.3);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;pointer-events:auto}
+
+/* WAVE CLEAR */
+#wave-clear{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;z-index:60;display:none;pointer-events:none}
+#wave-clear h2{font-size:36px;color:#2c2;margin-bottom:4px}
+#wave-clear p{color:#aaa;font-size:16px}
+
+@media(max-width:768px){
+  #mobile-controls{display:block}
+  #weapon-bar .key-hint{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ====== MENU ====== -->
+<div id="menu" class="screen active">
+  <div class="icons">🧟💀🎪🦆🐄🎸</div>
+  <h1>DEAD WEIRD</h1>
+  <p class="sub">A Zombie Shooter Like No Other</p>
+  <p class="brand">From Catfish Heads · <a href="https://catfishheads.site" target="_blank">catfishheads.site</a> · Ugly Truths. Beautiful Lights.</p>
+  <div class="view-btns">
+    <button id="btn-fp" onclick="setView('fp')">👁 FIRST PERSON</button>
+    <button id="btn-tp" class="sel" onclick="setView('tp')">🎯 THIRD PERSON</button>
+  </div>
+  <div class="menu-row">
+    <button class="btn-play" onclick="playGame()">🎮 FREE DEMO</button>
+    <button class="btn-how" onclick="showScreen('howtoplay')">📖 HOW TO PLAY</button>
+    <button class="btn-unlock" onclick="showScreen('unlock-modal')">⚡ UNLOCK ALL — $4.99</button>
+  </div>
+  <div class="controls-hint">
+    WASD Move &nbsp; Mouse Aim &nbsp; Click Shoot &nbsp; R Reload &nbsp; V Switch View &nbsp; Q Auto-Aim
+  </div>
+  <img src="assets/zombie-group.jpg" alt="Zombies" style="width:120px;height:auto;margin-top:12px;border-radius:12px;border:2px solid #c22;opacity:0.8">
+</div>
+
+<!-- ====== HOW TO PLAY ====== -->
+<div id="howtoplay" class="screen">
+  <div class="inner">
+    <h2>🧟 Dead Weird — Catfish Heads Game 🧟</h2>
+
+    <h3>🖥️ Desktop Controls</h3>
+    <table>
+      <tr><td>W A S D / Arrow Keys</td><td>Move your character</td></tr>
+      <tr><td>Mouse Movement</td><td>Aim your weapon</td></tr>
+      <tr><td>Left Click (hold)</td><td>Shoot — hold to rapid fire</td></tr>
+      <tr><td>R Key</td><td>Reload your weapon</td></tr>
+      <tr><td>1, 2, 3, 4 Keys</td><td>Switch between weapons</td></tr>
+      <tr><td>V Key</td><td>Toggle First / Third Person view</td></tr>
+    </table>
+
+    <h3>📱 Mobile / Touch Controls</h3>
+    <table>
+      <tr><td>Left Joystick</td><td>Bottom left — drag to move</td></tr>
+      <tr><td>🔴 FIRE Button</td><td>Bottom right — HOLD to shoot</td></tr>
+      <tr><td>Right Side Swipe</td><td>Swipe to aim / look around</td></tr>
+      <tr><td>⟳ Button</td><td>Tap to reload</td></tr>
+      <tr><td>Weapon Slots</td><td>Tap weapon icons to switch</td></tr>
+      <tr><td>V Toggle</td><td>Switch FP / TP</td></tr>
+    </table>
+
+    <h3>🎯 Goal</h3>
+    <p style="color:#ccc;font-size:14px;margin-bottom:12px">Survive zombie waves as long as possible. Kill zombies to earn points. Chain kills for COMBO multipliers. Collect power-ups. Clear a wave and a harder one begins.</p>
+
+    <h3>💡 Pro Tips</h3>
+    <p style="color:#ccc;font-size:14px;margin-bottom:16px">Keep moving — standing still gets you surrounded. Watch your ammo — hit R before it hits zero. Grab Hearts ❤️ when HP drops. Combos multiply your score — never break your streak!</p>
+
+    <h3>🔫 Your Arsenal</h3>
+    <div class="weapon-card"><span class="icon">🔫</span><div class="info"><h4>Pistol</h4><p>Reliable. 24 shots. Fast reload. Your starting weapon.</p></div></div>
+    <div class="weapon-card"><span class="icon">🦆</span><div class="info"><h4>Duck Gun</h4><p>Fires rubber ducks that QUACK on impact. Unlocks Wave 3.</p></div></div>
+    <div class="weapon-card"><span class="icon">🍕</span><div class="info"><h4>Pizza Cannon</h4><p>Explosive area damage. 4 shots. Big boom. Unlocks Wave 5.</p></div></div>
+    <div class="weapon-card"><span class="icon">🎸</span><div class="info"><h4>Guitar Shockwave</h4><p>One shot kills EVERYTHING on screen. Unlocks Wave 7.</p></div></div>
+
+    <h3>⚡ Power-Ups</h3>
+    <div class="powerup-card"><span class="icon">❤️</span><div class="info"><h4>Heart</h4><p>Restores 35 HP — walk over to collect</p></div></div>
+    <div class="powerup-card"><span class="icon">⚡</span><div class="info"><h4>Lightning</h4><p>Speed Boost — move 90% faster for 7 seconds</p></div></div>
+    <div class="powerup-card"><span class="icon">🛡️</span><div class="info"><h4>Shield</h4><p>Blocks the next hit completely — full game only</p></div></div>
+    <div class="powerup-card"><span class="icon">💎</span><div class="info"><h4>Diamond</h4><p>Instant +1,000 bonus score — full game only</p></div></div>
+
+    <h3>🎪 Weird Events (Random Mid-Wave)</h3>
+    <div class="weird-grid">
+      <div class="weird-item"><span>🎪 Disco Fever</span> — Zombies dance for 5s</div>
+      <div class="weird-item"><span>☎️ Phone Call</span> — A zombie apologizes</div>
+      <div class="weird-item"><span>🍕 Pizza Drone</span> — Heals you +40 HP</div>
+      <div class="weird-item"><span>🐄 Cow Stampede</span> — Zombie cows charge</div>
+      <div class="weird-item"><span>🎵 Smooth Jazz</span> — Everyone slows 50%</div>
+      <div class="weird-item"><span>🌧️ Duck Rain</span> — Rubber ducks rain ammo</div>
+      <div class="weird-item"><span>💅 Makeover</span> — Zombies distracted</div>
+      <div class="weird-item"><span>📺 TV Static</span> — All zombies stunned 3s</div>
+      <div class="weird-item"><span>🤖 Vendor Rage</span> — Vending machine ally</div>
+      <div class="weird-item"><span>🎂 Birthday</span> — Random +500 bonus</div>
+    </div>
+
+    <h3>💰 Demo vs. Full Game</h3>
+    <p style="color:#ccc;font-size:14px">The FREE demo gives you 3 full waves. Unlock the full game for $4.99 one-time to get unlimited waves, all 4 weapons, all weird events, boss zombies, zombie cows, shield & diamond power-ups, and the vending machine ally.</p>
+  </div>
+  <button class="back-btn" onclick="showScreen('menu')">← BACK</button>
+</div>
+
+<!-- ====== UNLOCK MODAL ====== -->
+<div id="unlock-modal" class="screen">
+  <div class="inner">
+    <div class="unlock-icons">🔓🧟🦆🎸🍕🐄</div>
+    <h2>UNLOCK THE FULL WEIRDNESS</h2>
+    <p class="tagline">The zombies are waiting. And they have opinions about it.</p>
+    <p class="price">$4.99 one-time forever</p>
+    <div class="features-grid">
+      <div>🌊 Unlimited Waves</div>
+      <div>🦆 Rubber Duck Gun</div>
+      <div>🍕 Pizza Cannon</div>
+      <div>🎸 Guitar Shockwave</div>
+      <div>🐄 Zombie Cows</div>
+      <div>👹 Boss Zombies</div>
+      <div>🤖 Vending Machine Ally</div>
+      <div>🎪 All Weird Events</div>
+      <div>🛡️ Shield Power-up</div>
+      <div>💎 Diamond Bonus</div>
+      <div>👁 + 🎯 Both Views</div>
+      <div>🏆 Leaderboard</div>
+    </div>
+    <!-- Connect Stripe key to enable real payments — see code comments below -->
+    <!-- To enable Stripe: set STRIPE_KEY below and uncomment the Stripe.js script tag -->
+    <!-- <script src="https://js.stripe.com/v3/"></script> -->
+    <button class="pay-btn" onclick="handlePurchase()">💳 PAY $4.99 & UNLOCK</button>
+    <p class="stripe-note">🔒 Powered by Stripe · We never store your card data</p>
+    <p class="brand-note">A Catfish Heads Production · <a href="https://catfishheads.site" target="_blank" style="color:#888">catfishheads.site</a> · Joey Donner</p>
+  </div>
+  <button class="back-btn" onclick="showScreen('menu')">📖 HOW TO PLAY &nbsp; ← BACK</button>
+</div>
+
+<!-- ====== GAME OVER ====== -->
+<div id="gameover" class="screen">
+  <div class="skull">💀</div>
+  <h1>YOU DIED</h1>
+  <div class="stats">
+    <div><div class="stat-val" id="go-score">0</div><div class="stat-label">Score</div></div>
+    <div><div class="stat-val" id="go-wave">1</div><div class="stat-label">Wave</div></div>
+    <div><div class="stat-val" id="go-kills">0</div><div class="stat-label">Kills</div></div>
+    <div><div class="stat-val" id="go-combo">x1</div><div class="stat-label">Best Combo</div></div>
+  </div>
+  <div class="go-btns">
+    <button class="btn-retry" onclick="playGame()">↺ RETRY</button>
+    <button class="btn-how" onclick="showScreen('howtoplay')">📖 HOW TO PLAY</button>
+    <button class="btn-unlock" onclick="showScreen('unlock-modal')">⚡ UNLOCK FULL</button>
+    <button class="btn-how" onclick="showScreen('menu')">← TITLE</button>
+  </div>
+  <p style="margin-top:16px;color:#555;font-size:12px"><a href="https://catfishheads.site" target="_blank" style="color:#666">catfishheads.site</a> · Ugly Truths. Beautiful Lights.</p>
+</div>
+
+<!-- ====== WAVE CLEAR ====== -->
+<div id="wave-clear">
+  <h2>🎉 WAVE CLEAR!</h2>
+  <p id="wave-clear-text">Wave 1 done!</p>
+</div>
+
+<!-- ====== HUD ====== -->
+<div id="hud" style="display:none">
+  <div class="hud-left">
+    <button id="view-toggle" onclick="toggleView()">👁 FP · 🎯 TP</button>
+    <span class="wave-display">WAVE <span id="hud-wave">1</span></span>
+    <span>SCORE: <span id="hud-score">0</span></span>
+  </div>
+  <div class="hud-center">
+    <span class="combo-display">⚡ x<span id="hud-combo">1</span> COMBO</span>
+  </div>
+  <div class="hud-right">
+    <span class="hp-bar-wrap">❤️ HEALTH <span class="hp-bar"><span class="hp-fill" id="hp-fill"></span></span></span>
+    <span id="dw-autoaim" style="cursor:pointer;font-size:12px;color:#666" onclick="DWAutoAim.toggle()">AIM:OFF [Q]</span>
+  </div>
+</div>
+
+<!-- ====== WEAPON BAR ====== -->
+<div id="weapon-bar" style="display:none">
+  <div class="weapon-slot active" id="ws-0" onclick="selectWeapon(0)"><span class="key-hint">1</span>🔫</div>
+  <div class="weapon-slot locked" id="ws-1" onclick="selectWeapon(1)"><span class="key-hint">2</span>🦆</div>
+  <div class="weapon-slot locked" id="ws-2" onclick="selectWeapon(2)"><span class="key-hint">3</span>🍕</div>
+  <div class="weapon-slot locked" id="ws-3" onclick="selectWeapon(3)"><span class="key-hint">4</span>🎸</div>
+</div>
+
+<!-- ====== AMMO ====== -->
+<div id="ammo-display" style="display:none">
+  <div class="ammo-count" id="ammo-count">24/24</div>
+  <div class="reload-msg" id="reload-msg"></div>
+</div>
+
+<!-- ====== DEMO BANNER ====== -->
+<div id="demo-banner" onclick="showScreen('unlock-modal')">🔒 DEMO — Wave 3 Max · UNLOCK FULL GAME →</div>
+
+<!-- ====== WAVE / WEIRD BANNERS ====== -->
+<div id="wave-banner"></div>
+<div id="weird-banner"></div>
+
+<!-- ====== MOBILE CONTROLS ====== -->
+<div id="mobile-controls">
+  <div id="joystick-zone">
+    <div id="joystick-base"><div id="joystick-knob"></div></div>
+  </div>
+  <div id="fire-btn">🔥<br>FIRE</div>
+  <div id="reload-btn">⟳</div>
+</div>
+
+<canvas id="gc"></canvas>
+
+<script>
+// ===============================
+// ASSET LOADING
+// ===============================
+const DWAssets = {
+  zombieImg: new Image(),
+  zombieImg2: new Image(),
+  zombieImg3: new Image(),
+  loaded: 0,
+  total: 3,
+  load() {
+    const srcs = [
+      ['zombieImg', 'assets/zombie-spritesheet.jpg'],
+      ['zombieImg2', 'assets/zombie-teal-spritesheet.jpg'],
+      ['zombieImg3', 'assets/zombie-blue.jpg']
+    ];
+    srcs.forEach(([key, src]) => {
+      this[key].onload = () => this.loaded++;
+      this[key].onerror = () => this.loaded++;
+      this[key].src = src;
+    });
+  }
+};
+DWAssets.load();
+
+// ===============================
+// AUTO-AIM SYSTEM
+// ===============================
+const DWAutoAim = {
+  enabled: false,
+  toggle() {
+    this.enabled = !this.enabled;
+    const el = document.getElementById('dw-autoaim');
+    if (el) {
+      el.textContent = 'AIM:' + (this.enabled ? 'ON' : 'OFF') + ' [Q]';
+      el.style.color = this.enabled ? '#0f0' : '#666';
+    }
+  },
+  update() {
+    if (!this.enabled || !G || !G.running) return;
+    const p = G.player;
+    let nearest = null, nearDist = Infinity;
+    G.zombies.forEach(z => {
+      const dx = z.x - p.x, dy = z.y - p.y;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d < nearDist) { nearDist = d; nearest = z; }
+    });
+    if (nearest) {
+      p.angle = Math.atan2(nearest.y - p.y, nearest.x - p.x);
+      mouse.x = nearest.x;
+      mouse.y = nearest.y;
+    }
+  }
+};
+
+// ===============================
+// GAMEPAD (Xbox Controller)
+// ===============================
+const DWGamepad = {
+  prevButtons: {},
+  deadzone: 0.25,
+  fireCounter: 0,
+
+  poll() {
+    const gpList = navigator.getGamepads ? navigator.getGamepads() : [];
+    const gp = gpList[0] || gpList[1] || gpList[2] || gpList[3];
+    if (!gp || !G || !G.running) return;
+
+    const p = G.player;
+
+    // Left stick -> movement
+    const lx = Math.abs(gp.axes[0]) > this.deadzone ? gp.axes[0] : 0;
+    const ly = Math.abs(gp.axes[1]) > this.deadzone ? gp.axes[1] : 0;
+    if (lx || ly) {
+      const len = Math.sqrt(lx * lx + ly * ly);
+      p.x += (lx / len) * p.speed;
+      p.y += (ly / len) * p.speed;
+      p.x = Math.max(p.radius, Math.min(canvas.width - p.radius, p.x));
+      p.y = Math.max(p.radius, Math.min(canvas.height - p.radius, p.y));
+    }
+
+    // Right stick -> aim
+    const rx = Math.abs(gp.axes[2]) > this.deadzone ? gp.axes[2] : 0;
+    const ry = Math.abs(gp.axes[3]) > this.deadzone ? gp.axes[3] : 0;
+    if (rx || ry) {
+      p.angle = Math.atan2(ry, rx);
+      mouse.x = p.x + rx * 300;
+      mouse.y = p.y + ry * 300;
+    }
+
+    // RT (button 7) -> shoot (rate-limited)
+    if (gp.buttons[7] && gp.buttons[7].pressed) {
+      this.fireCounter++;
+      if (this.fireCounter % 8 === 1) shoot();
+    } else {
+      this.fireCounter = 0;
+    }
+
+    // LB (button 4) -> reload
+    if (this.justPressed(gp, 4)) reload();
+
+    // A (button 0) -> toggle auto-aim
+    if (this.justPressed(gp, 0)) DWAutoAim.toggle();
+
+    // Y (button 3) -> toggle view
+    if (this.justPressed(gp, 3)) toggleView();
+
+    // D-pad left/right (buttons 14, 15) -> switch weapons
+    if (this.justPressed(gp, 15)) {
+      const next = (G.currentWeapon + 1) % weapons.length;
+      selectWeapon(next);
+    }
+    if (this.justPressed(gp, 14)) {
+      const prev = (G.currentWeapon - 1 + weapons.length) % weapons.length;
+      selectWeapon(prev);
+    }
+
+    // Save button states
+    for (let i = 0; i < gp.buttons.length; i++) {
+      this.prevButtons[i] = gp.buttons[i].pressed;
+    }
+  },
+
+  justPressed(gp, idx) {
+    return gp.buttons[idx] && gp.buttons[idx].pressed && !this.prevButtons[idx];
+  }
+};
+
+// ===============================
+// EXTRA WEIRDNESS ENGINE
+// ===============================
+const Weirdness = {
+  screenWobble: 0,
+  rainbowMode: false,
+  gravityFlip: false,
+  mirrorMode: false,
+  tinyMode: false,
+  giantMode: false,
+  trailMode: false,
+  trailHistory: [],
+
+  randomize() {
+    if (Math.random() < 0.15) {
+      this.screenWobble = 180 + Math.random() * 120;
+    }
+    if (Math.random() < 0.12) {
+      this.rainbowMode = true;
+      setTimeout(() => this.rainbowMode = false, 5000 + Math.random() * 3000);
+    }
+    if (Math.random() < 0.08) {
+      this.mirrorMode = true;
+      setTimeout(() => this.mirrorMode = false, 4000);
+    }
+    if (Math.random() < 0.08) {
+      this.tinyMode = true;
+      setTimeout(() => { this.tinyMode = false; }, 5000);
+    }
+    if (Math.random() < 0.08) {
+      this.giantMode = true;
+      setTimeout(() => { this.giantMode = false; }, 4000);
+    }
+    if (Math.random() < 0.10) {
+      this.trailMode = true;
+      setTimeout(() => { this.trailMode = false; this.trailHistory = []; }, 6000);
+    }
+  },
+
+  applyRender(ctx) {
+    if (this.screenWobble > 0) {
+      this.screenWobble--;
+      const wobble = Math.sin(Date.now() / 100) * 8;
+      ctx.translate(wobble, Math.cos(Date.now() / 130) * 5);
+    }
+    if (this.mirrorMode) {
+      ctx.scale(-1, 1);
+      ctx.translate(-canvas.width, 0);
+    }
+  },
+
+  getZombieColor(z, baseColor) {
+    if (this.rainbowMode) {
+      return `hsl(${(Date.now() / 3 + z.x * 2 + z.y) % 360}, 80%, 50%)`;
+    }
+    return baseColor;
+  },
+
+  getZombieRadius(z) {
+    let r = z.radius;
+    if (this.tinyMode) r = z.isBoss ? 14 : 7;
+    if (this.giantMode) r = z.isBoss ? 50 : 30;
+    return r;
+  },
+
+  updateTrail() {
+    if (!this.trailMode || !G) return;
+    this.trailHistory.push({ x: G.player.x, y: G.player.y, life: 20 });
+    this.trailHistory = this.trailHistory.filter(t => { t.life--; return t.life > 0; });
+  },
+
+  drawTrail(ctx) {
+    if (!this.trailMode) return;
+    this.trailHistory.forEach(t => {
+      ctx.globalAlpha = t.life / 20 * 0.3;
+      ctx.fillStyle = `hsl(${t.life * 18}, 80%, 60%)`;
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, G.player.radius * (t.life / 20), 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+  }
+};
+
+// ===============================
+// CONFIG
+// ===============================
+// To enable Stripe payments, set your publishable key here:
+// const STRIPE_KEY = 'pk_live_YOUR_KEY_HERE';
+// Then uncomment the Stripe.js script tag in the HTML above.
+// In your server, create a Checkout Session and redirect.
+const STRIPE_KEY = null;
+
+const WEAPONS = [
+  { name:'Pistol', icon:'🔫', ammo:24, maxAmmo:24, fireRate:8, damage:1, speed:14, radius:4, reloadTime:50, unlockWave:0, type:'bullet', color:'#ff0' },
+  { name:'Duck Gun', icon:'🦆', ammo:18, maxAmmo:18, fireRate:12, damage:2, speed:10, radius:8, reloadTime:60, unlockWave:3, type:'duck', color:'#ff0' },
+  { name:'Pizza Cannon', icon:'🍕', ammo:4, maxAmmo:4, fireRate:30, damage:5, speed:8, radius:14, reloadTime:90, unlockWave:5, type:'pizza', color:'#f90', aoe:60 },
+  { name:'Guitar Shockwave', icon:'🎸', ammo:1, maxAmmo:1, fireRate:60, damage:999, speed:0, radius:0, reloadTime:120, unlockWave:7, type:'shockwave', color:'#f0f' }
+];
+
+const POWERUP_TYPES = [
+  { type:'heart', icon:'❤️', color:'#f44', demoOk:true },
+  { type:'lightning', icon:'⚡', color:'#ff0', demoOk:true },
+  { type:'shield', icon:'🛡️', color:'#4af', demoOk:false },
+  { type:'diamond', icon:'💎', color:'#4ff', demoOk:false }
+];
+
+const WEIRD_EVENTS = [
+  { name:'Disco Fever', icon:'🎪', desc:'Zombies stop to dance!', duration:300, effect:'disco', demoOk:true },
+  { name:'Phone Call', icon:'☎️', desc:'A zombie apologizes to you', duration:180, effect:'phone', demoOk:true },
+  { name:'Pizza Drone', icon:'🍕', desc:'Delivery drone heals +40 HP', duration:1, effect:'pizzadrone', demoOk:true },
+  { name:'Cow Stampede', icon:'🐄', desc:'Zombie cows charge the map!', duration:300, effect:'cows', demoOk:false },
+  { name:'Smooth Jazz', icon:'🎵', desc:'Everyone slows down 50%', duration:360, effect:'jazz', demoOk:true },
+  { name:'Duck Rain', icon:'🌧️', desc:'Rubber ducks rain ammo!', duration:1, effect:'duckrain', demoOk:true },
+  { name:'Makeover', icon:'💅', desc:'Zombies distracted by mirrors', duration:300, effect:'makeover', demoOk:false },
+  { name:'TV Static', icon:'📺', desc:'All zombies stunned!', duration:180, effect:'tvstatic', demoOk:true },
+  { name:'Vendor Rage', icon:'🤖', desc:'Vending machine ally!', duration:480, effect:'vendor', demoOk:false },
+  { name:'Birthday', icon:'🎂', desc:'+500 bonus score!', duration:1, effect:'birthday', demoOk:true }
+];
+
+// ===============================
+// GAME STATE
+// ===============================
+let G = null;
+let fullUnlocked = false;
+let viewMode = 'tp';
+let mouseDown = false;
+let fireCooldown = 0;
+
+const canvas = document.getElementById('gc');
+const ctx = canvas.getContext('2d');
+const keys = {};
+const mouse = { x: 0, y: 0 };
+
+function createState() {
+  return {
+    player: {
+      x: canvas.width / 2, y: canvas.height / 2,
+      hp: 100, maxHp: 100, speed: 4, baseSpeed: 4, angle: 0,
+      radius: 18, invincible: 0, shielded: false, speedBoostTimer: 0
+    },
+    zombies: [],
+    bullets: [],
+    particles: [],
+    powerups: [],
+    cows: [],
+    vendorBullets: [],
+    vendor: null,
+    score: 0, wave: 1, kills: 0,
+    combo: 1, bestCombo: 1, comboTimer: 0,
+    weaponIdx: 0,
+    weapons: WEAPONS.map(w => ({ ...w, currentAmmo: w.ammo, reloading: false, reloadTimer: 0 })),
+    waveTimer: 0, zombiesPerWave: 5, zombiesSpawned: 0,
+    waveClearing: false, waveClearTimer: 0,
+    weirdEvent: null, weirdTimer: 0,
+    weirdTriggered: false,
+    phoneZombie: null,
+    running: true, paused: false,
+    demoOver: false
+  };
+}
+
+// ===============================
+// SCREEN MANAGEMENT
+// ===============================
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById(id);
+  if (el) el.classList.add('active');
+  if (id !== 'menu' && id !== 'howtoplay' && id !== 'unlock-modal' && id !== 'gameover') return;
+  document.getElementById('hud').style.display = 'none';
+  document.getElementById('weapon-bar').style.display = 'none';
+  document.getElementById('ammo-display').style.display = 'none';
+  document.getElementById('demo-banner').style.display = 'none';
+}
+
+function setView(v) {
+  viewMode = v;
+  document.getElementById('btn-fp').classList.toggle('sel', v === 'fp');
+  document.getElementById('btn-tp').classList.toggle('sel', v === 'tp');
+  updateViewToggle();
+}
+
+function toggleView() {
+  setView(viewMode === 'tp' ? 'fp' : 'tp');
+}
+
+function updateViewToggle() {
+  const btn = document.getElementById('view-toggle');
+  btn.textContent = viewMode === 'fp' ? '👁 FP' : '🎯 TP';
+}
+
+// ===============================
+// START / PLAY
+// ===============================
+function playGame() {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  resizeCanvas();
+  G = createState();
+  document.getElementById('hud').style.display = 'flex';
+  document.getElementById('weapon-bar').style.display = 'flex';
+  document.getElementById('ammo-display').style.display = 'block';
+  if (!fullUnlocked) document.getElementById('demo-banner').style.display = 'block';
+  updateViewToggle();
+  updateWeaponSlots();
+  showWaveBanner(G.wave);
+  requestAnimationFrame(gameLoop);
+}
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+
+// ===============================
+// INPUT
+// ===============================
+window.addEventListener('keydown', e => {
+  keys[e.key.toLowerCase()] = true;
+  if (e.key === 'r') reload();
+  if (e.key === 'v') toggleView();
+  if (e.key === 'q') DWAutoAim.toggle();
+  if (e.key >= '1' && e.key <= '4') selectWeapon(parseInt(e.key) - 1);
+});
+window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+canvas.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+canvas.addEventListener('mousedown', e => { if (e.button === 0) mouseDown = true; });
+canvas.addEventListener('mouseup', e => { if (e.button === 0) mouseDown = false; });
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+// Mobile joystick
+let joystickActive = false, joystickDx = 0, joystickDy = 0;
+const jZone = document.getElementById('joystick-zone');
+const jKnob = document.getElementById('joystick-knob');
+jZone.addEventListener('touchstart', e => { joystickActive = true; handleJoystick(e); e.preventDefault(); });
+jZone.addEventListener('touchmove', e => { handleJoystick(e); e.preventDefault(); });
+jZone.addEventListener('touchend', () => { joystickActive = false; joystickDx = 0; joystickDy = 0; jKnob.style.left = '35px'; jKnob.style.top = '35px'; });
+function handleJoystick(e) {
+  const rect = document.getElementById('joystick-base').getBoundingClientRect();
+  const cx = rect.left + 60, cy = rect.top + 60;
+  const t = e.touches[0];
+  let dx = t.clientX - cx, dy = t.clientY - cy;
+  const dist = Math.sqrt(dx*dx+dy*dy);
+  if (dist > 50) { dx = dx/dist*50; dy = dy/dist*50; }
+  joystickDx = dx / 50;
+  joystickDy = dy / 50;
+  jKnob.style.left = (35 + dx) + 'px';
+  jKnob.style.top = (35 + dy) + 'px';
+}
+
+// Mobile fire
+const fireBtn = document.getElementById('fire-btn');
+fireBtn.addEventListener('touchstart', e => { mouseDown = true; e.preventDefault(); });
+fireBtn.addEventListener('touchend', e => { mouseDown = false; e.preventDefault(); });
+
+// Mobile reload
+document.getElementById('reload-btn').addEventListener('touchstart', e => { reload(); e.preventDefault(); });
+
+// Mobile aim (right side swipe)
+let aimTouchId = null;
+canvas.addEventListener('touchstart', e => {
+  for (const t of e.changedTouches) {
+    if (t.clientX > window.innerWidth * 0.4) {
+      aimTouchId = t.identifier;
+      mouse.x = t.clientX;
+      mouse.y = t.clientY;
+    }
+  }
+});
+canvas.addEventListener('touchmove', e => {
+  for (const t of e.changedTouches) {
+    if (t.identifier === aimTouchId) {
+      mouse.x = t.clientX;
+      mouse.y = t.clientY;
+    }
+  }
+});
+canvas.addEventListener('touchend', e => {
+  for (const t of e.changedTouches) {
+    if (t.identifier === aimTouchId) aimTouchId = null;
+  }
+});
+
+// ===============================
+// WEAPONS
+// ===============================
+function selectWeapon(idx) {
+  if (!G) return;
+  const w = WEAPONS[idx];
+  if (!fullUnlocked && w.unlockWave > 0) return;
+  if (!fullUnlocked && idx > 0) return;
+  if (G.wave < w.unlockWave && !fullUnlocked) return;
+  G.weaponIdx = idx;
+  updateWeaponSlots();
+}
+
+function updateWeaponSlots() {
+  if (!G) return;
+  for (let i = 0; i < 4; i++) {
+    const el = document.getElementById('ws-' + i);
+    el.classList.toggle('active', i === G.weaponIdx);
+    const unlocked = fullUnlocked || (WEAPONS[i].unlockWave === 0) || (G.wave >= WEAPONS[i].unlockWave && fullUnlocked);
+    el.classList.toggle('locked', !unlocked && WEAPONS[i].unlockWave > 0);
+  }
+}
+
+function reload() {
+  if (!G) return;
+  const w = G.weapons[G.weaponIdx];
+  if (!w.reloading && w.currentAmmo < w.maxAmmo) {
+    w.reloading = true;
+    w.reloadTimer = 0;
+  }
+}
+
+function shoot() {
+  if (!G || fireCooldown > 0) return;
+  const w = G.weapons[G.weaponIdx];
+  if (w.reloading || w.currentAmmo <= 0) return;
+
+  const p = G.player;
+  fireCooldown = w.fireRate;
+
+  if (w.type === 'shockwave') {
+    // Kill all zombies on screen
+    G.zombies.forEach(z => {
+      z.hp = 0;
+      G.score += 10 * G.wave * G.combo;
+      G.kills++;
+      G.combo++;
+      G.comboTimer = 180;
+      addParticles(z.x, z.y, '#f0f', 12);
+    });
+    G.zombies = [];
+    w.currentAmmo--;
+    addParticles(p.x, p.y, '#f0f', 20);
+    updateAmmoDisplay();
+    return;
+  }
+
+  const bx = p.x + Math.cos(p.angle) * 38;
+  const by = p.y + Math.sin(p.angle) * 38;
+
+  G.bullets.push({
+    x: bx, y: by,
+    vx: Math.cos(p.angle) * w.speed,
+    vy: Math.sin(p.angle) * w.speed,
+    radius: w.radius, damage: w.damage,
+    type: w.type, color: w.color,
+    aoe: w.aoe || 0
+  });
+
+  w.currentAmmo--;
+  addParticles(bx, by, '#ff0', 3);
+  updateAmmoDisplay();
+}
+
+function updateAmmoDisplay() {
+  if (!G) return;
+  const w = G.weapons[G.weaponIdx];
+  document.getElementById('ammo-count').textContent = w.currentAmmo + '/' + w.maxAmmo;
+  document.getElementById('reload-msg').textContent = w.reloading ? '⟳ RELOADING' : '';
+}
+
+// ===============================
+// ENTITIES
+// ===============================
+function spawnZombie() {
+  const side = Math.floor(Math.random() * 4);
+  let x, y;
+  if (side === 0) { x = Math.random() * canvas.width; y = -40; }
+  else if (side === 1) { x = canvas.width + 40; y = Math.random() * canvas.height; }
+  else if (side === 2) { x = Math.random() * canvas.width; y = canvas.height + 40; }
+  else { x = -40; y = Math.random() * canvas.height; }
+
+  const wave = G.wave;
+  const isBoss = fullUnlocked && wave >= 5 && Math.random() < 0.08;
+
+  G.zombies.push({
+    x, y,
+    hp: isBoss ? 10 + wave * 2 : 2 + Math.floor(wave / 2),
+    maxHp: isBoss ? 10 + wave * 2 : 2 + Math.floor(wave / 2),
+    speed: isBoss ? 1.0 : 1.2 + Math.random() * 0.6 + wave * 0.08,
+    radius: isBoss ? 28 : 15,
+    hitFlash: 0, isBoss,
+    stunned: 0, dancing: false, distracted: false,
+    spriteType: Math.floor(Math.random() * 3)
+  });
+  G.zombiesSpawned++;
+}
+
+function spawnPowerup() {
+  const available = POWERUP_TYPES.filter(p => fullUnlocked || p.demoOk);
+  const type = available[Math.floor(Math.random() * available.length)];
+  G.powerups.push({
+    x: 60 + Math.random() * (canvas.width - 120),
+    y: 60 + Math.random() * (canvas.height - 120),
+    type: type.type, icon: type.icon, color: type.color,
+    life: 600
+  });
+}
+
+function spawnCow() {
+  const y = Math.random() * canvas.height;
+  G.cows.push({
+    x: -40, y,
+    speed: 6 + Math.random() * 4,
+    radius: 20, damage: 3
+  });
+}
+
+function addParticles(x, y, color, count) {
+  for (let i = 0; i < count; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const s = 1 + Math.random() * 3;
+    G.particles.push({
+      x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s,
+      life: 20 + Math.random()*15, color, radius: 2 + Math.random()*3
+    });
+  }
+}
+
+// ===============================
+// WEIRD EVENTS
+// ===============================
+function triggerWeirdEvent() {
+  const available = WEIRD_EVENTS.filter(e => fullUnlocked || e.demoOk);
+  const evt = available[Math.floor(Math.random() * available.length)];
+  G.weirdEvent = evt;
+  G.weirdTimer = evt.duration;
+
+  showWeirdBanner(evt.icon + ' ' + evt.name, evt.desc);
+
+  // Instant effects
+  if (evt.effect === 'pizzadrone') {
+    G.player.hp = Math.min(G.player.maxHp, G.player.hp + 40);
+    addParticles(G.player.x, G.player.y, '#f90', 10);
+  }
+  if (evt.effect === 'birthday') {
+    G.score += 500;
+    addParticles(G.player.x, G.player.y - 30, '#ff0', 15);
+  }
+  if (evt.effect === 'duckrain') {
+    G.weapons.forEach(w => { w.currentAmmo = w.maxAmmo; w.reloading = false; });
+    for (let i = 0; i < 8; i++) {
+      addParticles(Math.random()*canvas.width, Math.random()*canvas.height, '#ff0', 4);
+    }
+  }
+  if (evt.effect === 'cows') {
+    for (let i = 0; i < 5; i++) spawnCow();
+  }
+  if (evt.effect === 'vendor') {
+    G.vendor = { x: G.player.x + 60, y: G.player.y - 60, timer: evt.duration };
+  }
+  if (evt.effect === 'disco') {
+    G.zombies.forEach(z => z.dancing = true);
+  }
+  if (evt.effect === 'tvstatic') {
+    G.zombies.forEach(z => z.stunned = evt.duration);
+  }
+  if (evt.effect === 'makeover') {
+    G.zombies.forEach(z => z.distracted = true);
+  }
+  if (evt.effect === 'jazz') {
+    // Handled in update
+  }
+  if (evt.effect === 'phone') {
+    if (G.zombies.length > 0) {
+      G.phoneZombie = G.zombies[Math.floor(Math.random() * G.zombies.length)];
+      G.phoneZombie.stunned = evt.duration;
+    }
+  }
+}
+
+// ===============================
+// BANNERS
+// ===============================
+function showWaveBanner(wave) {
+  const el = document.getElementById('wave-banner');
+  el.textContent = 'WAVE ' + wave;
+  el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 2000);
+}
+
+function showWeirdBanner(title, desc) {
+  const el = document.getElementById('weird-banner');
+  el.innerHTML = title + '<br><span style="font-size:16px;color:#ccc">' + desc + '</span>';
+  el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 2500);
+}
+
+function showWaveClear(wave) {
+  const el = document.getElementById('wave-clear');
+  document.getElementById('wave-clear-text').textContent = 'Wave ' + wave + ' done!';
+  el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 1800);
+}
+
+// ===============================
+// PURCHASE
+// ===============================
+function handlePurchase() {
+  if (STRIPE_KEY) {
+    // Real Stripe integration would go here:
+    // const stripe = Stripe(STRIPE_KEY);
+    // stripe.redirectToCheckout({ sessionId: '...' });
+    alert('Stripe checkout would open here. Connect your Stripe key in the code to enable real payments.');
+  } else {
+    // Demo unlock for testing
+    if (confirm('No Stripe key configured.\n\nUnlock full game for free (demo/testing mode)?')) {
+      fullUnlocked = true;
+      alert('Full game unlocked! All weapons, events, and unlimited waves are now available.');
+      showScreen('menu');
+    }
+  }
+}
+
+// ===============================
+// GAME LOOP
+// ===============================
+function gameLoop() {
+  if (!G || !G.running) return;
+
+  update();
+  DWAutoAim.update();
+  DWGamepad.poll();
+  Weirdness.updateTrail();
+  render();
+  updateHUD();
+
+  if (G.player.hp <= 0) {
+    G.running = false;
+    document.getElementById('go-score').textContent = G.score;
+    document.getElementById('go-wave').textContent = G.wave;
+    document.getElementById('go-kills').textContent = G.kills;
+    document.getElementById('go-combo').textContent = 'x' + G.bestCombo;
+    document.getElementById('hud').style.display = 'none';
+    document.getElementById('weapon-bar').style.display = 'none';
+    document.getElementById('ammo-display').style.display = 'none';
+    document.getElementById('demo-banner').style.display = 'none';
+    showScreen('gameover');
+    return;
+  }
+
+  requestAnimationFrame(gameLoop);
+}
+
+// ===============================
+// UPDATE
+// ===============================
+function update() {
+  const p = G.player;
+  const jazzSlow = G.weirdEvent && G.weirdEvent.effect === 'jazz' && G.weirdTimer > 0;
+  const speedMult = jazzSlow ? 0.5 : 1;
+
+  // Player speed boost
+  if (p.speedBoostTimer > 0) {
+    p.speed = p.baseSpeed * 1.9;
+    p.speedBoostTimer--;
+  } else {
+    p.speed = p.baseSpeed;
+  }
+
+  // Movement
+  let mx = 0, my = 0;
+  if (keys['w'] || keys['arrowup']) my -= 1;
+  if (keys['s'] || keys['arrowdown']) my += 1;
+  if (keys['a'] || keys['arrowleft']) mx -= 1;
+  if (keys['d'] || keys['arrowright']) mx += 1;
+
+  // Mobile joystick
+  if (joystickActive) { mx = joystickDx; my = joystickDy; }
+
+  if (mx || my) {
+    const len = Math.sqrt(mx*mx+my*my);
+    p.x += (mx/len) * p.speed * speedMult;
+    p.y += (my/len) * p.speed * speedMult;
+  }
+
+  p.x = Math.max(p.radius, Math.min(canvas.width - p.radius, p.x));
+  p.y = Math.max(p.radius, Math.min(canvas.height - p.radius, p.y));
+  p.angle = Math.atan2(mouse.y - p.y, mouse.x - p.x);
+  if (p.invincible > 0) p.invincible--;
+
+  // Shooting (hold to fire)
+  if (mouseDown) shoot();
+  if (fireCooldown > 0) fireCooldown--;
+
+  // Weapon reload
+  const cw = G.weapons[G.weaponIdx];
+  if (cw.reloading) {
+    cw.reloadTimer++;
+    if (cw.reloadTimer >= cw.reloadTime) {
+      cw.currentAmmo = cw.maxAmmo;
+      cw.reloading = false;
+      cw.reloadTimer = 0;
+    }
+  }
+  // Auto-reload when empty
+  if (cw.currentAmmo <= 0 && !cw.reloading) {
+    cw.reloading = true;
+    cw.reloadTimer = 0;
+  }
+  updateAmmoDisplay();
+
+  // Combo timer
+  if (G.comboTimer > 0) {
+    G.comboTimer--;
+    if (G.comboTimer <= 0) G.combo = 1;
+  }
+
+  // Bullets
+  G.bullets.forEach(b => { b.x += b.vx * speedMult; b.y += b.vy * speedMult; });
+  G.bullets = G.bullets.filter(b => {
+    if (b.x < -20 || b.x > canvas.width+20 || b.y < -20 || b.y > canvas.height+20) return false;
+    for (let i = 0; i < G.zombies.length; i++) {
+      const z = G.zombies[i];
+      const dx = b.x-z.x, dy = b.y-z.y;
+      if (Math.sqrt(dx*dx+dy*dy) < b.radius + z.radius) {
+        // AOE
+        if (b.aoe) {
+          G.zombies.forEach(z2 => {
+            const d2 = Math.sqrt((b.x-z2.x)**2+(b.y-z2.y)**2);
+            if (d2 < b.aoe) { z2.hp -= b.damage; z2.hitFlash = 8; addParticles(z2.x,z2.y,'#f90',4); }
+          });
+          addParticles(b.x, b.y, '#f90', 12);
+        } else {
+          z.hp -= b.damage;
+          z.hitFlash = 6;
+          addParticles(b.x, b.y, b.type==='duck'?'#ff0':'#4f4', 4);
+        }
+        if (z.hp <= 0) {
+          G.score += (z.isBoss ? 50 : 10) * G.wave * G.combo;
+          G.kills++;
+          G.combo++;
+          if (G.combo > G.bestCombo) G.bestCombo = G.combo;
+          G.comboTimer = 180;
+          addParticles(z.x, z.y, z.isBoss?'#f0f':'#2a8c2a', z.isBoss?16:8);
+        }
+        return false;
+      }
+    }
+    return true;
+  });
+
+  // Zombies
+  G.zombies.forEach(z => {
+    if (z.stunned > 0) { z.stunned--; return; }
+    if (z.dancing || z.distracted) return;
+    const a = Math.atan2(p.y-z.y, p.x-z.x);
+    z.x += Math.cos(a) * z.speed * speedMult;
+    z.y += Math.sin(a) * z.speed * speedMult;
+    if (z.hitFlash > 0) z.hitFlash--;
+
+    // Collision with player
+    const dx = p.x-z.x, dy = p.y-z.y;
+    if (Math.sqrt(dx*dx+dy*dy) < p.radius + z.radius && p.invincible <= 0) {
+      if (p.shielded) {
+        p.shielded = false;
+        p.invincible = 30;
+        addParticles(p.x, p.y, '#4af', 10);
+      } else {
+        p.hp -= z.isBoss ? 20 : 10;
+        p.invincible = 30;
+        addParticles(p.x, p.y, '#f44', 6);
+      }
+    }
+  });
+  G.zombies = G.zombies.filter(z => z.hp > 0);
+
+  // Cows
+  G.cows.forEach(c => {
+    c.x += c.speed;
+    // Damage zombies
+    G.zombies.forEach(z => {
+      const dx = c.x-z.x, dy = c.y-z.y;
+      if (Math.sqrt(dx*dx+dy*dy) < c.radius + z.radius) {
+        z.hp -= c.damage;
+        z.hitFlash = 8;
+        if (z.hp <= 0) { G.score += 10*G.wave; G.kills++; addParticles(z.x,z.y,'#8B4513',8); }
+      }
+    });
+  });
+  G.cows = G.cows.filter(c => c.x < canvas.width + 60);
+
+  // Vendor ally
+  if (G.vendor) {
+    G.vendor.timer--;
+    if (G.vendor.timer <= 0) G.vendor = null;
+    else if (G.vendor.timer % 20 === 0 && G.zombies.length > 0) {
+      const tgt = G.zombies[0];
+      const a = Math.atan2(tgt.y-G.vendor.y, tgt.x-G.vendor.x);
+      G.vendorBullets.push({
+        x: G.vendor.x, y: G.vendor.y,
+        vx: Math.cos(a)*10, vy: Math.sin(a)*10,
+        radius: 6, damage: 2
+      });
+    }
+  }
+  G.vendorBullets.forEach(b => { b.x += b.vx; b.y += b.vy; });
+  G.vendorBullets = G.vendorBullets.filter(b => {
+    if (b.x<-20||b.x>canvas.width+20||b.y<-20||b.y>canvas.height+20) return false;
+    for (const z of G.zombies) {
+      if (Math.sqrt((b.x-z.x)**2+(b.y-z.y)**2) < b.radius+z.radius) {
+        z.hp -= b.damage; z.hitFlash = 6;
+        addParticles(b.x,b.y,'#8B4513',3);
+        if (z.hp<=0){G.score+=10*G.wave;G.kills++;addParticles(z.x,z.y,'#2a8c2a',8);}
+        return false;
+      }
+    }
+    return true;
+  });
+
+  // Powerups
+  G.powerups.forEach(pu => {
+    pu.life--;
+    const dx = p.x-pu.x, dy = p.y-pu.y;
+    if (Math.sqrt(dx*dx+dy*dy) < p.radius + 16) {
+      if (pu.type === 'heart') { p.hp = Math.min(p.maxHp, p.hp + 35); }
+      if (pu.type === 'lightning') { p.speedBoostTimer = 420; }
+      if (pu.type === 'shield') { p.shielded = true; }
+      if (pu.type === 'diamond') { G.score += 1000; }
+      addParticles(pu.x, pu.y, pu.color, 8);
+      pu.life = 0;
+    }
+  });
+  G.powerups = G.powerups.filter(pu => pu.life > 0);
+
+  // Particles
+  G.particles.forEach(pt => { pt.x+=pt.vx; pt.y+=pt.vy; pt.life--; pt.radius*=0.96; });
+  G.particles = G.particles.filter(pt => pt.life > 0);
+
+  // Weird event timer
+  if (G.weirdTimer > 0) {
+    G.weirdTimer--;
+    if (G.weirdTimer <= 0) {
+      // Clear effects
+      G.zombies.forEach(z => { z.dancing=false; z.distracted=false; z.stunned=0; });
+      G.weirdEvent = null;
+      G.phoneZombie = null;
+    }
+  }
+
+  // Wave management
+  G.waveTimer++;
+  if (!G.waveClearing) {
+    const spawnRate = Math.max(15, 50 - G.wave * 3);
+    if (G.waveTimer % spawnRate === 0 && G.zombiesSpawned < G.zombiesPerWave) {
+      spawnZombie();
+    }
+    // Random powerup
+    if (G.waveTimer % 300 === 150) spawnPowerup();
+    // Weird event mid-wave
+    if (!G.weirdTriggered && G.zombiesSpawned > G.zombiesPerWave / 2 && Math.random() < 0.01) {
+      G.weirdTriggered = true;
+      triggerWeirdEvent();
+    }
+
+    if (G.zombiesSpawned >= G.zombiesPerWave && G.zombies.length === 0) {
+      G.waveClearing = true;
+      G.waveClearTimer = 120;
+      showWaveClear(G.wave);
+    }
+  } else {
+    G.waveClearTimer--;
+    if (G.waveClearTimer <= 0) {
+      // Demo check
+      if (!fullUnlocked && G.wave >= 3) {
+        G.demoOver = true;
+        G.running = false;
+        document.getElementById('go-score').textContent = G.score;
+        document.getElementById('go-wave').textContent = G.wave;
+        document.getElementById('go-kills').textContent = G.kills;
+        document.getElementById('go-combo').textContent = 'x' + G.bestCombo;
+        document.getElementById('hud').style.display = 'none';
+        document.getElementById('weapon-bar').style.display = 'none';
+        document.getElementById('ammo-display').style.display = 'none';
+        document.getElementById('demo-banner').style.display = 'none';
+        showScreen('gameover');
+        return;
+      }
+          G.wave++;
+          G.zombiesPerWave = 5 + G.wave * 3;
+          G.zombiesSpawned = 0;
+          G.waveTimer = 0;
+          G.waveClearing = false;
+          G.weirdTriggered = false;
+          Weirdness.randomize();
+          showWaveBanner(G.wave);
+          updateWeaponSlots();
+    }
+  }
+}
+
+// ===============================
+// RENDER
+// ===============================
+function render() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (viewMode === 'tp') {
+    renderThirdPerson();
+  } else {
+    renderFirstPerson();
+  }
+}
+
+function renderThirdPerson() {
+  ctx.save();
+  Weirdness.applyRender(ctx);
+
+  // Background grid
+  ctx.fillStyle = '#0a0a0a';
+  ctx.fillRect(-20, -20, canvas.width + 40, canvas.height + 40);
+  ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < canvas.width; x += 40) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke(); }
+  for (let y = 0; y < canvas.height; y += 40) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(canvas.width,y); ctx.stroke(); }
+
+  // Disco effect
+  if (G.weirdEvent && G.weirdEvent.effect === 'disco' && G.weirdTimer > 0) {
+    const t = Date.now() / 200;
+    for (let i = 0; i < 5; i++) {
+      ctx.fillStyle = `hsla(${(t*60+i*72)%360},80%,50%,0.06)`;
+      ctx.beginPath();
+      ctx.arc(canvas.width/2+Math.cos(t+i)*200, canvas.height/2+Math.sin(t+i)*200, 200, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+
+  // TV Static effect
+  if (G.weirdEvent && G.weirdEvent.effect === 'tvstatic' && G.weirdTimer > 0) {
+    ctx.fillStyle = 'rgba(255,255,255,0.02)';
+    for (let i = 0; i < 50; i++) {
+      ctx.fillRect(Math.random()*canvas.width, Math.random()*canvas.height, 3, 3);
+    }
+  }
+
+  // Powerups
+  G.powerups.forEach(pu => {
+    ctx.font = '24px serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(pu.icon, pu.x, pu.y + 8);
+    // Glow
+    ctx.fillStyle = pu.color + '30';
+    ctx.beginPath();
+    ctx.arc(pu.x, pu.y, 18 + Math.sin(Date.now()/200)*4, 0, Math.PI*2);
+    ctx.fill();
+  });
+
+  // Particles
+  G.particles.forEach(pt => {
+    ctx.globalAlpha = pt.life / 35;
+    ctx.fillStyle = pt.color;
+    ctx.beginPath(); ctx.arc(pt.x, pt.y, pt.radius, 0, Math.PI*2); ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+
+  // Bullets
+  G.bullets.forEach(b => {
+    if (b.type === 'duck') {
+      ctx.font = (b.radius*2) + 'px serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('🦆', b.x, b.y + b.radius);
+    } else if (b.type === 'pizza') {
+      ctx.font = (b.radius*2) + 'px serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('🍕', b.x, b.y + b.radius);
+    } else {
+      ctx.fillStyle = b.color;
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.radius, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = b.color + '50';
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.radius+3, 0, Math.PI*2); ctx.fill();
+    }
+  });
+
+  // Vendor bullets
+  G.vendorBullets.forEach(b => {
+    ctx.font = '14px serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('🥤', b.x, b.y+6);
+  });
+
+  // Cows
+  G.cows.forEach(c => {
+    ctx.font = '32px serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('🐄', c.x, c.y + 12);
+  });
+
+  // Player trail (weirdness)
+  Weirdness.drawTrail(ctx);
+
+  // Zombies
+  const zImgs = [DWAssets.zombieImg, DWAssets.zombieImg2, DWAssets.zombieImg3];
+  const zSrcRegions = [
+    [50, 50, 650, 1400],
+    [1400, 20, 600, 730],
+    [60, 20, 480, 820]
+  ];
+
+  G.zombies.forEach(z => {
+    ctx.save();
+    const pa = Math.atan2(G.player.y-z.y, G.player.x-z.x);
+    const drawR = Weirdness.getZombieRadius(z);
+
+    // Sprite-based rendering
+    const sIdx = z.spriteType !== undefined ? z.spriteType : 0;
+    const sImg = zImgs[sIdx];
+    const sRgn = zSrcRegions[sIdx];
+    let useSprite = sImg && sImg.complete && sImg.naturalWidth > 0;
+
+    // Determine fill color for fallback/overlay
+    let bodyColor;
+    if (z.dancing) bodyColor = `hsl(${Date.now()/5%360},80%,50%)`;
+    else if (z.distracted) bodyColor = '#ff69b4';
+    else if (z.stunned > 0) bodyColor = '#888';
+    else bodyColor = z.hitFlash > 0 ? '#ff6' : (z.isBoss ? '#8B0000' : '#2a8c2a');
+    bodyColor = Weirdness.getZombieColor(z, bodyColor);
+
+    if (useSprite && !z.isBoss) {
+      ctx.beginPath();
+      ctx.arc(z.x, z.y, drawR, 0, Math.PI*2);
+      ctx.clip();
+      // Fill base color then multiply-blend sprite to remove white BG
+      ctx.fillStyle = bodyColor;
+      const sz = drawR * 2;
+      ctx.fillRect(z.x - drawR, z.y - drawR, sz, sz);
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.drawImage(sImg, sRgn[0], sRgn[1], sRgn[2], sRgn[3], z.x - drawR, z.y - drawR, sz, sz);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.restore();
+      ctx.save();
+      ctx.strokeStyle = z.isBoss ? '#500' : '#1a5c1a';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(z.x, z.y, drawR, 0, Math.PI*2); ctx.stroke();
+    } else {
+      ctx.fillStyle = bodyColor;
+      ctx.beginPath(); ctx.arc(z.x, z.y, drawR, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = z.isBoss ? '#500' : '#1a5c1a';
+      ctx.lineWidth = 2; ctx.stroke();
+    }
+
+    // Eyes
+    const eyeR = z.isBoss ? 4 : Math.max(2, drawR * 0.2);
+    const eyeDist = drawR * 0.47;
+    ctx.fillStyle = z.isBoss ? '#ff0' : '#f00';
+    ctx.beginPath();
+    ctx.arc(z.x+Math.cos(pa-0.4)*eyeDist, z.y+Math.sin(pa-0.4)*eyeDist, eyeR, 0, Math.PI*2);
+    ctx.arc(z.x+Math.cos(pa+0.4)*eyeDist, z.y+Math.sin(pa+0.4)*eyeDist, eyeR, 0, Math.PI*2);
+    ctx.fill();
+
+    // HP bar
+    if (z.hp < z.maxHp) {
+      const bw = z.isBoss ? 40 : 24;
+      ctx.fillStyle = '#400';
+      ctx.fillRect(z.x-bw/2, z.y-drawR-8, bw, 4);
+      ctx.fillStyle = z.isBoss ? '#f0f' : '#f44';
+      ctx.fillRect(z.x-bw/2, z.y-drawR-8, bw*(z.hp/z.maxHp), 4);
+    }
+
+    // Phone call speech bubble
+    if (G.phoneZombie === z) {
+      ctx.fillStyle = '#fff';
+      ctx.font = '11px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('"Sorry about all this..."', z.x, z.y - drawR - 14);
+    }
+
+    // Dancing indicator
+    if (z.dancing) {
+      ctx.font = '14px serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('🕺', z.x, z.y - drawR - 6);
+    }
+
+    // Distracted indicator
+    if (z.distracted) {
+      ctx.font = '14px serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('💅', z.x, z.y - drawR - 6);
+    }
+
+    ctx.restore();
+  });
+
+  // Vendor
+  if (G.vendor) {
+    ctx.font = '36px serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('🤖', G.vendor.x, G.vendor.y + 12);
+  }
+
+  // Player
+  const p = G.player;
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ctx.rotate(p.angle);
+
+  // Shield indicator
+  if (p.shielded) {
+    ctx.strokeStyle = '#4af';
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(0, 0, p.radius + 6, 0, Math.PI*2); ctx.stroke();
+  }
+
+  // Speed boost trail
+  if (p.speedBoostTimer > 0) {
+    ctx.fillStyle = 'rgba(255,255,0,0.15)';
+    ctx.beginPath(); ctx.arc(0, 0, p.radius + 10, 0, Math.PI*2); ctx.fill();
+  }
+
+  // Body
+  ctx.fillStyle = p.invincible > 0 && Math.floor(p.invincible/4)%2===0 ? '#5599ff' : '#2266cc';
+  ctx.beginPath(); ctx.arc(0, 0, p.radius, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = '#1a4a99'; ctx.lineWidth = 2; ctx.stroke();
+
+  // Gun
+  ctx.fillStyle = '#888';
+  ctx.fillRect(p.radius, -3, 20, 6);
+  ctx.fillStyle = '#666';
+  ctx.fillRect(p.radius+16, -4, 6, 8);
+
+  // Auto-aim indicator
+  if (DWAutoAim.enabled) {
+    ctx.strokeStyle = '#0f0';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.arc(0, 0, p.radius + 12, 0, Math.PI*2); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  ctx.restore();
+  ctx.restore();
+}
+
+function renderFirstPerson() {
+  // Pseudo-3D first person view
+  const p = G.player;
+  const fov = Math.PI / 3;
+  const halfFov = fov / 2;
+
+  // Sky and ground
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, canvas.width, canvas.height/2);
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(0, canvas.height/2, canvas.width, canvas.height/2);
+
+  // Grid lines on ground
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  for (let i = 1; i <= 10; i++) {
+    const y = canvas.height/2 + (canvas.height/2) * (i/10);
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(canvas.width,y); ctx.stroke();
+  }
+
+  // Disco effect in FP
+  if (G.weirdEvent && G.weirdEvent.effect === 'disco' && G.weirdTimer > 0) {
+    const t = Date.now() / 300;
+    ctx.fillStyle = `hsla(${t*60%360},80%,50%,0.08)`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  // Collect all visible entities and sort by distance
+  const entities = [];
+
+  G.zombies.forEach(z => {
+    const dx = z.x - p.x, dy = z.y - p.y;
+    const dist = Math.sqrt(dx*dx+dy*dy);
+    let angle = Math.atan2(dy, dx) - p.angle;
+    while (angle > Math.PI) angle -= Math.PI*2;
+    while (angle < -Math.PI) angle += Math.PI*2;
+    if (Math.abs(angle) < halfFov + 0.2) {
+      entities.push({ type:'zombie', z, dist, angle });
+    }
+  });
+
+  G.powerups.forEach(pu => {
+    const dx = pu.x - p.x, dy = pu.y - p.y;
+    const dist = Math.sqrt(dx*dx+dy*dy);
+    let angle = Math.atan2(dy, dx) - p.angle;
+    while (angle > Math.PI) angle -= Math.PI*2;
+    while (angle < -Math.PI) angle += Math.PI*2;
+    if (Math.abs(angle) < halfFov + 0.2) {
+      entities.push({ type:'powerup', pu, dist, angle });
+    }
+  });
+
+  // Sort back to front
+  entities.sort((a, b) => b.dist - a.dist);
+
+  entities.forEach(e => {
+    const screenX = canvas.width/2 + (e.angle / halfFov) * (canvas.width/2);
+    const scale = Math.max(0.1, 300 / e.dist);
+
+    if (e.type === 'zombie') {
+      const z = e.z;
+      const h = 60 * scale;
+      const w = 40 * scale;
+      const sy = canvas.height/2 - h/2 + h*0.1;
+
+      if (z.dancing) {
+        ctx.fillStyle = `hsl(${Date.now()/5%360},80%,50%)`;
+      } else if (z.isBoss) {
+        ctx.fillStyle = z.hitFlash > 0 ? '#ff6' : '#8B0000';
+      } else {
+        ctx.fillStyle = z.hitFlash > 0 ? '#ff6' : '#2a8c2a';
+      }
+
+      // Body rectangle
+      ctx.fillRect(screenX-w/2, sy, w, h);
+      // Eyes
+      ctx.fillStyle = z.isBoss ? '#ff0' : '#f00';
+      ctx.beginPath();
+      ctx.arc(screenX - w*0.2, sy + h*0.2, 3*scale, 0, Math.PI*2);
+      ctx.arc(screenX + w*0.2, sy + h*0.2, 3*scale, 0, Math.PI*2);
+      ctx.fill();
+
+      // HP bar
+      if (z.hp < z.maxHp) {
+        const bw = w;
+        ctx.fillStyle = '#400';
+        ctx.fillRect(screenX-bw/2, sy - 6*scale, bw, 4*scale);
+        ctx.fillStyle = '#f44';
+        ctx.fillRect(screenX-bw/2, sy - 6*scale, bw*(z.hp/z.maxHp), 4*scale);
+      }
+    }
+
+    if (e.type === 'powerup') {
+      const sz = Math.max(12, 28 * scale);
+      ctx.font = sz + 'px serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(e.pu.icon, screenX, canvas.height/2 + 20*scale);
+    }
+  });
+
+  // Crosshair
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+  const cx = canvas.width/2, cy = canvas.height/2;
+  ctx.beginPath(); ctx.moveTo(cx-15,cy); ctx.lineTo(cx-5,cy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx+5,cy); ctx.lineTo(cx+15,cy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx,cy-15); ctx.lineTo(cx,cy-5); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx,cy+5); ctx.lineTo(cx,cy+15); ctx.stroke();
+
+  // Weapon display at bottom
+  const wi = G.weapons[G.weaponIdx];
+  ctx.font = '48px serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(WEAPONS[G.weaponIdx].icon, canvas.width/2, canvas.height - 30);
+}
+
+// ===============================
+// HUD UPDATE
+// ===============================
+function updateHUD() {
+  if (!G) return;
+  document.getElementById('hp-fill').style.width = Math.max(0, G.player.hp) + '%';
+  const fill = document.getElementById('hp-fill');
+  if (G.player.hp > 60) fill.style.background = '#2c2';
+  else if (G.player.hp > 30) fill.style.background = '#cc2';
+  else fill.style.background = '#c22';
+
+  document.getElementById('hud-score').textContent = G.score;
+  document.getElementById('hud-wave').textContent = G.wave;
+  document.getElementById('hud-combo').textContent = G.combo;
+}
+
+// ===============================
+// INIT
+// ===============================
+resizeCanvas();
+</script>
+</body>
+</html>
